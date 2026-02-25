@@ -1,0 +1,42 @@
+{
+  "name": "iruyo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:web": "next dev --turbopack src/web",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
+    "build:web": "next build src/web",
+    "build:server": "tsc --project tsconfig.server.json",
+    "build": "npm run build:web && npm run build:server",
+    "start:server": "node dist/server/index.js",
+    "start:web": "next start src/web",
+    "start": "concurrently \"npm run start:server\" \"npm run start:web\"",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx src/shared/db/migrate.ts",
+    "seed": "tsx scripts/seed.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "concurrently": "^9.2.1",
+    "dotenv": "^17.2.4",
+    "drizzle-orm": "^0.45.1",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.2.2",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "drizzle-kit": "^0.31.9",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18"
+  }
+}

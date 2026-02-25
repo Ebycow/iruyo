@@ -1,0 +1,22 @@
+name: iruyo
+
+services:
+  app:
+    build: .
+    user: "1000:998"
+    ports:
+      - "3000:3000"   # Next.js web UI
+      - "3001:3001"   # WebSocket notification server
+    volumes:
+      - ./data:/app/data
+      - ${CSV_PATH}:/host/targetusers.csv:ro
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - CSV_PATH=/host/targetusers.csv
+      - DATABASE_PATH=/app/data/iruyo.db
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: unless-stopped
