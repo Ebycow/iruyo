@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useCallback, useState } from "react";
 import { useWebSocket, type WatchTarget } from "@/hooks/use-websocket";
+import logoImage from "@/public/logo.png";
 import { ChannelList } from "./channel-list";
 import { TargetList } from "./target-list";
 import { EventFeed } from "./event-feed";
@@ -93,14 +95,20 @@ export function Dashboard() {
           <div className="flex items-center gap-4">
             {/* Logo mark */}
             <div
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-sm font-extrabold"
+              className="h-8 w-8 rounded-lg overflow-hidden"
               style={{
-                background: "var(--accent-gradient)",
-                color: "white",
                 boxShadow: "0 2px 12px rgba(145, 71, 255, 0.3)",
               }}
             >
-              S
+              <Image
+                src={logoImage}
+                alt="iruyo logo"
+                width={32}
+                height={32}
+                className="h-full w-full object-cover"
+                unoptimized
+                priority
+              />
             </div>
             <div>
               <h1

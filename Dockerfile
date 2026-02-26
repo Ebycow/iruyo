@@ -32,7 +32,9 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/tsconfig.json ./
 
-RUN mkdir -p data && chown -R appuser:nodejs data
+RUN mkdir -p data .next/cache/images && \
+    chown -R appuser:nodejs data && \
+    chmod 1777 .next/cache .next/cache/images
 
 USER appuser
 
