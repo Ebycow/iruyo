@@ -25,10 +25,28 @@ Twitchの指定チャンネルを監視し、**ウォッチリストに登録し
 ### 前提条件
 
 - [Twitch Developer Console](https://dev.twitch.tv/console) でアプリケーションを作成済みであること
-- チャット読み取り権限（`user:read:chat`）を持つBotアカウントのトークンを取得済みであること
+- チャット読み取り権限（`user:read:chat`）を持つBotアカウントのアクセストークンを取得済みであること
 - Docker & Docker Compose がインストール済みであること
 
-### 1. 環境変数の設定
+### 1. Twitch アクセストークンの取得
+
+`user:read:chat` スコープを持つBotアカウントの `ACCESS_TOKEN` と `REFRESH_TOKEN` が必要です。取得方法はいくつかありますが、[Twitch CLI](https://dev.twitch.tv/docs/cli/) を使うと手軽です。
+
+**認証情報を設定**（クライアントIDとシークレットはDeveloper Consoleで確認）:
+
+```bash
+twitch configure -i <CLIENT_ID> -s <CLIENT_SECRET>
+```
+
+**Botアカウントのトークンを取得**:
+
+```bash
+twitch token -u -s "user:read:chat"
+```
+
+実行するとブラウザが開くので、**Botアカウント**でログインして認可します。完了すると `ACCESS_TOKEN` と `REFRESH_TOKEN` がターミナルに表示されます。これらを後述の環境変数に設定します。
+
+### 2. 環境変数の設定
 
 `.env.example` をコピーして `.env` を作成し、各値を設定します。
 
@@ -49,7 +67,7 @@ cp .env.example .env
 
 CSV_PATHは https://github.com/Ebycow/twicome と互換性があります
 
-### 2. 監視対象チャンネルCSVの準備
+### 3. 監視対象チャンネルCSVの準備
 
 以下の形式でCSVファイルを作成します。
 
@@ -64,7 +82,7 @@ streamer_b,987654321
 
 CSVは起動後も5分間隔で自動再読み込みされます。追加したチャンネルはアプリ再起動なしで反映されます。
 
-### 3. 起動（Docker Compose）
+### 4. 起動（Docker Compose）
 
 ```bash
 docker compose up -d
