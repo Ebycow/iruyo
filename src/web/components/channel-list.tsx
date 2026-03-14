@@ -125,6 +125,23 @@ function ChannelCard({
             {channel.displayName}
           </span>
         </div>
+        {channel.notifyBroadcast && (
+          <span style={{
+            background: "var(--accent-glow)",
+            border: "1px solid var(--accent)",
+            color: "var(--accent-light)",
+            borderRadius: "4px",
+            padding: "3px 8px",
+            lineHeight: 1,
+            flexShrink: 0,
+            display: "inline-flex",
+            alignItems: "center",
+          }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 1a1 1 0 0 1 1 1v.5A5 5 0 0 1 13 7.5V11h1a1 1 0 1 1 0 2H2a1 1 0 1 1 0-2h1V7.5A5 5 0 0 1 7 2.5V2a1 1 0 0 1 1-1ZM6.268 13a2 2 0 0 0 3.464 0H6.268Z" />
+            </svg>
+          </span>
+        )}
         {channel.isLive ? (
           <span className="badge badge-live animate-pulse-glow">
             LIVE

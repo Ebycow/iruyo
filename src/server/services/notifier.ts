@@ -16,6 +16,7 @@ interface InitialState {
     displayName: string;
     profileImageUrl: string | null;
     isLive: boolean;
+    notifyBroadcast: boolean;
   }>;
   watchTargets: Array<{
     userId: string;
@@ -51,6 +52,8 @@ export class Notifier {
   private wss: WebSocketServer | null = null;
   private clients: Set<WebSocket> = new Set();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(private notifyBroadcasterIds: Set<string> = new Set()) {}
 
   start(port: number) {
     this.wss = new WebSocketServer({ port });
@@ -103,7 +106,11 @@ export class Notifier {
         isLive: schema.channels.isLive,
       })
       .from(schema.channels)
-      .all();
+      .all()
+      .map((ch) => ({
+        ...ch,
+        notifyBroadcast: this.notifyBroadcasterIds.has(ch.broadcasterUserId),
+      }));
 
     const watchTargets = db
       .select({

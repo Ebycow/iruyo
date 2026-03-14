@@ -13,5 +13,10 @@ export const config = {
   csvSyncIntervalMs: 5 * 60 * 1000, // 5 minutes
   streamCheckIntervalMs: 60 * 1000, // 60 seconds
   wsNotifyPort: 3001,
-  discordWebhookUrl: process.env.DISCORD_WEBHOOK_URL,
+  discordListenerNotifyWebhookUrl: process.env.DISCORD_LISTNER_NOTIFY_WEBHOOK_URL,
+  discordBroadcasterNotifyWebhookUrl: process.env.DISCORD_BROADCASTER_NOTIFY_WEBHOOK_URL,
+  discordBroadcasterNotifyUserIds: (process.env.DISCORD_BROADCASTER_NOTIFY_WEBHOOK_USER_ID || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
 };

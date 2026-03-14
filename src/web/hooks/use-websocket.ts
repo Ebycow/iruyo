@@ -20,6 +20,7 @@ export interface Channel {
   displayName: string;
   profileImageUrl?: string | null;
   isLive: boolean;
+  notifyBroadcast?: boolean;
 }
 
 export interface WatchTarget {

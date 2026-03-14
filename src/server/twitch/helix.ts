@@ -1,5 +1,5 @@
 import { getAccessToken, getClientId, ensureValidToken } from "./auth";
-import type { TwitchStream, TwitchUser } from "./types";
+import type { TwitchStream, TwitchUser, TwitchVideo } from "./types";
 
 const HELIX_BASE = "https://api.twitch.tv/helix";
 
@@ -72,6 +72,25 @@ export async function getUsers(logins: string[]): Promise<TwitchUser[]> {
   }
 
   return users;
+}
+
+export async function getLatestVod(userId: string): Promise<TwitchVideo | null> {
+  const params = new URLSearchParams({
+    user_id: userId,
+    type: "archive",
+    first: "1",
+  });
+
+  const res = await helixFetch(`/videos?${params.toString()}`);
+  if (!res.ok) {
+    console.error(
+      `[helix] getLatestVod failed: ${res.status} ${await res.text()}`
+    );
+    return null;
+  }
+
+  const data = await res.json();
+  return data.data?.[0] ?? null;
 }
 
 export async function getUsersById(ids: string[]): Promise<TwitchUser[]> {

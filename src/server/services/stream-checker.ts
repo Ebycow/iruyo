@@ -3,11 +3,13 @@ import { db, schema } from "@shared/db/index";
 import { eq } from "drizzle-orm";
 import { getStreams } from "../twitch/helix";
 import { config } from "../config";
+import type { TwitchStream } from "../twitch/types";
 
 export interface StreamStatusChange {
   broadcasterId: string;
   login: string;
   isLive: boolean;
+  streamData?: TwitchStream;
 }
 
 export class StreamChecker extends EventEmitter {
@@ -29,10 +31,14 @@ export class StreamChecker extends EventEmitter {
       const wasLive = channel.isLive;
 
       if (isLive !== wasLive) {
+        const streamData = isLive
+          ? liveStreams.find((s) => s.user_id === channel.broadcasterUserId)
+          : undefined;
         changes.push({
           broadcasterId: channel.broadcasterUserId,
           login: channel.login,
           isLive,
+          streamData,
         });
       }
 

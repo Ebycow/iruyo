@@ -3,19 +3,24 @@ import { sqlite } from "@shared/db/index";
 import { config } from "./config";
 import { validateToken } from "./twitch/auth";
 import { syncCsv, startCsvSync, stopCsvSync } from "./services/csv-sync";
+import { db, schema } from "@shared/db/index";
+import { eq } from "drizzle-orm";
 import { StreamChecker, type StreamStatusChange } from "./services/stream-checker";
 import { ChatIngest } from "./services/chat-ingest";
 import { Notifier } from "./services/notifier";
 import { DiscordNotifier } from "./services/discord-notifier";
+import { BroadcasterNotifier } from "./services/broadcaster-notifier";
 
 async function processChanges(
   changes: StreamStatusChange[],
   chatIngest: ChatIngest,
-  notifier: Notifier
+  notifier: Notifier,
+  broadcasterNotifier: BroadcasterNotifier
 ) {
   for (const change of changes) {
     await chatIngest.onStreamStatusChanged(change);
     notifier.notifyStreamStatus(change);
+    await broadcasterNotifier.onStreamStatusChanged(change);
   }
 }
 
@@ -34,10 +39,11 @@ async function main() {
   }
 
   // 2. Initialize services
-  const notifier = new Notifier();
+  const notifyUserIdSet = new Set(config.discordBroadcasterNotifyUserIds);
+  const notifier = new Notifier(notifyUserIdSet);
   const streamChecker = new StreamChecker();
   const chatIngest = new ChatIngest();
-  const discordNotifier = new DiscordNotifier(config.discordWebhookUrl);
+  const discordNotifier = new DiscordNotifier(config.discordListenerNotifyWebhookUrl);
 
   // 3. Start notifier (WebSocket server for frontend)
   notifier.start(config.wsNotifyPort);
@@ -57,7 +63,7 @@ async function main() {
         `[main] New channels from CSV: ${result.added.join(", ")}`
       );
       const changes = await streamChecker.check();
-      await processChanges(changes, chatIngest, notifier);
+      await processChanges(changes, chatIngest, notifier, broadcasterNotifier);
     }
   });
 
@@ -65,9 +71,31 @@ async function main() {
   chatIngest.refreshWatchTargets();
   chatIngest.startWatchTargetSync();
 
+  // 5.5. Build cold start suppression set and initialize BroadcasterNotifier
+  // 起動時点でDBにis_live=trueかつ通知対象の配信者は、最初の開始通知をスキップする
+  const coldStartIds = new Set(
+    db
+      .select({ broadcasterUserId: schema.channels.broadcasterUserId })
+      .from(schema.channels)
+      .where(eq(schema.channels.isLive, true))
+      .all()
+      .map((c) => c.broadcasterUserId)
+      .filter((id) => notifyUserIdSet.has(id))
+  );
+  if (coldStartIds.size > 0) {
+    console.log(
+      `[main] Cold start: suppressing start notifications for ${coldStartIds.size} live broadcaster(s)`
+    );
+  }
+  const broadcasterNotifier = new BroadcasterNotifier(
+    config.discordBroadcasterNotifyWebhookUrl,
+    notifyUserIdSet,
+    coldStartIds
+  );
+
   // 6. Stream checker — detect live/offline changes (batch handler)
   streamChecker.on("status_changed", async (changes: StreamStatusChange[]) => {
-    await processChanges(changes, chatIngest, notifier);
+    await processChanges(changes, chatIngest, notifier, broadcasterNotifier);
   });
   streamChecker.start();
 

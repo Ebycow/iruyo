@@ -17,6 +17,17 @@ export interface TwitchStream {
   viewer_count: number;
   started_at: string;
   type: "live" | "";
+  tags: string[];
+}
+
+export interface TwitchVideo {
+  id: string;
+  user_id: string;
+  title: string;
+  url: string;
+  created_at: string;
+  duration: string;
+  view_count: number;
 }
 
 export interface TwitchTokenResponse {

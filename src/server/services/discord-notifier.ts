@@ -3,10 +3,10 @@ import { eq } from "drizzle-orm";
 import type { DetectedEvent } from "./chat-ingest";
 
 export class DiscordNotifier {
-  constructor(private webhookUrl: string | undefined) {}
+  constructor(private listenerWebhookUrl: string | undefined) {}
 
   async notifyDetected(event: DetectedEvent) {
-    if (!this.webhookUrl) return;
+    if (!this.listenerWebhookUrl) return;
 
     const channel = db
       .select({
@@ -24,7 +24,7 @@ export class DiscordNotifier {
     const content = `${chatterName}が${channelName}にいるよ！${url}`;
 
     try {
-      const res = await fetch(this.webhookUrl, {
+      const res = await fetch(this.listenerWebhookUrl!, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
