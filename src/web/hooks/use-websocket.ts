@@ -14,6 +14,14 @@ export type WsMessage =
   | { type: "target_chatted"; data: EventRecord }
   | { type: "stream_status_changed"; data: StreamStatusChange };
 
+export interface StreamInfo {
+  title: string;
+  gameName: string;
+  tags: string[];
+  viewerCount: number;
+  startedAt: string;
+}
+
 export interface Channel {
   broadcasterUserId: string;
   login: string;
@@ -21,6 +29,7 @@ export interface Channel {
   profileImageUrl?: string | null;
   isLive: boolean;
   notifyBroadcast?: boolean;
+  streamInfo?: StreamInfo | null;
 }
 
 export interface WatchTarget {
@@ -53,6 +62,13 @@ export interface StreamStatusChange {
   broadcasterId: string;
   login: string;
   isLive: boolean;
+  streamData?: {
+    title: string;
+    game_name: string;
+    tags: string[];
+    viewer_count: number;
+    started_at: string;
+  };
 }
 
 const EVENT_FEED_LIMIT = 30;
@@ -81,7 +97,7 @@ export function useWebSocket(url: string, notificationsEnabled: boolean) {
 
       switch (msg.type) {
         case "initial_state":
-          setChannels(msg.data.channels);
+          setChannels(msg.data.channels as Channel[]);
           setWatchTargets(msg.data.watchTargets);
           setEvents(msg.data.recentEvents.slice(0, EVENT_FEED_LIMIT));
           setSeenTargetsByChannel(() => {
@@ -138,11 +154,17 @@ export function useWebSocket(url: string, notificationsEnabled: boolean) {
 
         case "stream_status_changed":
           setChannels((prev) =>
-            prev.map((ch) =>
-              ch.broadcasterUserId === msg.data.broadcasterId
-                ? { ...ch, isLive: msg.data.isLive }
-                : ch
-            )
+            prev.map((ch) => {
+              if (ch.broadcasterUserId !== msg.data.broadcasterId) return ch;
+              const sd = msg.data.streamData;
+              return {
+                ...ch,
+                isLive: msg.data.isLive,
+                streamInfo: sd
+                  ? { title: sd.title, gameName: sd.game_name, tags: sd.tags, viewerCount: sd.viewer_count, startedAt: sd.started_at }
+                  : null,
+              };
+            })
           );
           if (msg.data.isLive) {
             setSeenTargetsByChannel((prev) => ({

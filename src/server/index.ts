@@ -46,6 +46,7 @@ async function main() {
   const discordNotifier = new DiscordNotifier(config.discordListenerNotifyWebhookUrl);
 
   // 3. Start notifier (WebSocket server for frontend)
+  notifier.setStreamDataGetter((userId) => streamChecker.getLiveStream(userId));
   notifier.start(config.wsNotifyPort);
 
   // 4. Initial CSV sync — ensure channels are in DB before stream check

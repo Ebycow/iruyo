@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { DetectedEvent, MessageFragment } from "./chat-ingest";
 import type { StreamStatusChange } from "./stream-checker";
+import type { TwitchStream } from "../twitch/types";
 import { db, schema } from "@shared/db/index";
 import { desc, eq } from "drizzle-orm";
 
@@ -8,6 +9,14 @@ export type NotifyEvent =
   | { type: "target_chatted"; data: DetectedEvent }
   | { type: "stream_status_changed"; data: StreamStatusChange }
   | { type: "initial_state"; data: InitialState };
+
+interface StreamInfo {
+  title: string;
+  gameName: string;
+  tags: string[];
+  viewerCount: number;
+  startedAt: string;
+}
 
 interface InitialState {
   channels: Array<{
@@ -17,6 +26,7 @@ interface InitialState {
     profileImageUrl: string | null;
     isLive: boolean;
     notifyBroadcast: boolean;
+    streamInfo?: StreamInfo;
   }>;
   watchTargets: Array<{
     userId: string;
@@ -52,8 +62,13 @@ export class Notifier {
   private wss: WebSocketServer | null = null;
   private clients: Set<WebSocket> = new Set();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private streamDataGetter?: (userId: string) => TwitchStream | undefined;
 
   constructor(private notifyBroadcasterIds: Set<string> = new Set()) {}
+
+  setStreamDataGetter(getter: (userId: string) => TwitchStream | undefined) {
+    this.streamDataGetter = getter;
+  }
 
   start(port: number) {
     this.wss = new WebSocketServer({ port });
@@ -107,10 +122,22 @@ export class Notifier {
       })
       .from(schema.channels)
       .all()
-      .map((ch) => ({
-        ...ch,
-        notifyBroadcast: this.notifyBroadcasterIds.has(ch.broadcasterUserId),
-      }));
+      .map((ch) => {
+        const stream = ch.isLive ? this.streamDataGetter?.(ch.broadcasterUserId) : undefined;
+        return {
+          ...ch,
+          notifyBroadcast: this.notifyBroadcasterIds.has(ch.broadcasterUserId),
+          streamInfo: stream
+            ? {
+                title: stream.title,
+                gameName: stream.game_name,
+                tags: stream.tags,
+                viewerCount: stream.viewer_count,
+                startedAt: stream.started_at,
+              }
+            : undefined,
+        };
+      });
 
     const watchTargets = db
       .select({

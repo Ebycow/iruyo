@@ -1,6 +1,68 @@
 "use client";
 
-import type { Channel, WatchTarget } from "@/hooks/use-websocket";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type { Channel, StreamInfo, WatchTarget } from "@/hooks/use-websocket";
+
+function formatElapsed(startedAt: string): string {
+  const diffMs = Date.now() - new Date(startedAt).getTime();
+  const totalMinutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) return `${hours}時間${minutes}分`;
+  return `${minutes}分`;
+}
+
+function StreamPopup({ info, top, left }: { info: StreamInfo; top: number; left: number }) {
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        top,
+        left,
+        transform: "translateY(-50%)",
+        width: "240px",
+        background: "var(--card-solid)",
+        border: "1px solid var(--border)",
+        borderRadius: "8px",
+        padding: "10px 12px",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.6)",
+        zIndex: 9999,
+        pointerEvents: "none",
+      }}
+    >
+      <p className="text-xs font-medium leading-snug mb-1.5" style={{ color: "var(--foreground)" }}>
+        {info.title || "（タイトルなし）"}
+      </p>
+      {info.gameName && (
+        <p className="text-xs mb-1" style={{ color: "var(--muted)" }}>
+          🎮 {info.gameName}
+        </p>
+      )}
+      <p className="text-xs mb-1.5" style={{ color: "var(--muted)" }}>
+        👥 {info.viewerCount.toLocaleString()}人　⏱ {formatElapsed(info.startedAt)}
+      </p>
+      {info.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {info.tags.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] px-1.5 py-0.5 rounded"
+              style={{
+                background: "rgba(255,255,255,0.07)",
+                color: "var(--muted)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
 
 interface Props {
   channels: Channel[];
@@ -76,8 +138,18 @@ function ChannelCard({
   targets: WatchTarget[];
   index: number;
 }) {
+  const cardRef = useRef<HTMLAnchorElement>(null);
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number } | null>(null);
+
+  const handleMouseEnter = () => {
+    if (!cardRef.current || !channel.isLive || !channel.streamInfo) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setPopupPos({ top: rect.top + rect.height / 2, left: rect.right + 8 });
+  };
+
   return (
     <a
+      ref={cardRef}
       href={`https://twitch.tv/${channel.login}`}
       target="_blank"
       rel="noopener noreferrer"
@@ -88,7 +160,12 @@ function ChannelCard({
           ? "2px solid var(--live)"
           : "2px solid transparent",
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setPopupPos(null)}
     >
+      {popupPos && channel.streamInfo && (
+        <StreamPopup info={channel.streamInfo} top={popupPos.top} left={popupPos.left} />
+      )}
       <div className="flex items-center gap-2.5">
         {/* Channel avatar */}
         {channel.profileImageUrl ? (

@@ -14,6 +14,11 @@ export interface StreamStatusChange {
 
 export class StreamChecker extends EventEmitter {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private currentLiveStreams = new Map<string, TwitchStream>();
+
+  getLiveStream(userId: string): TwitchStream | undefined {
+    return this.currentLiveStreams.get(userId);
+  }
 
   async check(): Promise<StreamStatusChange[]> {
     const channels = db.select().from(schema.channels).all();
@@ -22,6 +27,12 @@ export class StreamChecker extends EventEmitter {
     const userIds = channels.map((c) => c.broadcasterUserId);
     const liveStreams = await getStreams(userIds);
     const liveSet = new Set(liveStreams.map((s) => s.user_id));
+
+    // Update current live streams map
+    this.currentLiveStreams.clear();
+    for (const stream of liveStreams) {
+      this.currentLiveStreams.set(stream.user_id, stream);
+    }
 
     const changes: StreamStatusChange[] = [];
     const now = new Date().toISOString();
