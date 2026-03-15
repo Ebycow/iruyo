@@ -71,12 +71,15 @@ export class ChatIngest extends EventEmitter {
 
   refreshWatchTargets() {
     const targets = db.select().from(schema.watchTargets).all();
-    this.watchTargetIds = new Set(targets.map((t) => t.userId));
+    const newIds = new Set(targets.map((t) => t.userId));
+    if (newIds.size !== this.watchTargetIds.size) {
+      console.log(
+        `[chat-ingest] Watch targets refreshed: ${newIds.size} users`
+      );
+    }
+    this.watchTargetIds = newIds;
     this.discordNotifyTargetIds = new Set(
       targets.filter((t) => t.notifyDiscord).map((t) => t.userId)
-    );
-    console.log(
-      `[chat-ingest] Watch targets refreshed: ${this.watchTargetIds.size} users`
     );
   }
 
