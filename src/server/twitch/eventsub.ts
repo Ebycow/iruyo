@@ -421,6 +421,11 @@ export class EventSubManager extends EventEmitter {
           console.log(
             `[eventsub-mgr] Unsubscribed from ${broadcasterId}`
           );
+          if (conn.subCount === 0) {
+            conn.close();
+            this.connections = this.connections.filter((c) => c !== conn);
+            console.log(`[eventsub-mgr] Closed empty connection conn-${conn.index}`);
+          }
         } else {
           console.error(
             `[eventsub-mgr] Unsubscribe failed: ${res.status}`
