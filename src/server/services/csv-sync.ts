@@ -92,9 +92,13 @@ let syncTimer: ReturnType<typeof setInterval> | null = null;
 export function startCsvSync(onSync?: (result: { added: string[] }) => void) {
   // Periodic sync only — initial sync should be done by caller via syncCsv()
   syncTimer = setInterval(async () => {
-    const result = await syncCsv();
-    if (result.added.length > 0) {
-      onSync?.(result);
+    try {
+      const result = await syncCsv();
+      if (result.added.length > 0) {
+        onSync?.(result);
+      }
+    } catch (err) {
+      console.error("[csv-sync] sync failed, will retry next interval:", err);
     }
   }, config.csvSyncIntervalMs);
 
