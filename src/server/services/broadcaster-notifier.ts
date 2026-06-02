@@ -63,7 +63,8 @@ export class BroadcasterNotifier {
   constructor(
     private webhookUrl: string | undefined,
     private notifyUserIds: Set<string>,
-    coldStartIds: Set<string>
+    coldStartIds: Set<string>,
+    private nicknames: Map<string, string> = new Map()
   ) {
     this.coldStartIds = new Set(coldStartIds);
     if (!webhookUrl) {
@@ -75,6 +76,11 @@ export class BroadcasterNotifier {
         `[broadcaster-notifier] Initialized. Notify targets: [${[...notifyUserIds].join(", ")}]`
       );
     }
+  }
+
+  /** 設定されたニックネームがあればそれを、なければTwitchの表示名を返す */
+  private resolveName(broadcasterId: string, fallback: string): string {
+    return this.nicknames.get(broadcasterId) ?? fallback;
   }
 
   async onStreamStatusChanged(change: StreamStatusChange): Promise<void> {
@@ -135,7 +141,7 @@ export class BroadcasterNotifier {
       return;
     }
 
-    const displayName = stream.user_name;
+    const displayName = this.resolveName(broadcasterId, stream.user_name);
     const now = toJST(new Date());
     const game = stream.game_name || "—";
     const tags =
@@ -173,6 +179,7 @@ export class BroadcasterNotifier {
   ): Promise<void> {
     if (!this.webhookUrl) return;
 
+    const displayName = this.resolveName(broadcasterId, cached.displayName);
     const now = toJST(endedAt);
     const duration = formatDuration(cached.startedAt, endedAt);
 
@@ -193,7 +200,7 @@ export class BroadcasterNotifier {
     }
 
     const lines = [
-      `**${cached.displayName}の配信が終わりました**`,
+      `**${displayName}の配信が終わりました**`,
       "",
       `日時：${now}`,
       `配信時間：${duration}`,

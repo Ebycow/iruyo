@@ -91,7 +91,8 @@ async function main() {
   const broadcasterNotifier = new BroadcasterNotifier(
     config.discordBroadcasterNotifyWebhookUrl,
     notifyUserIdSet,
-    coldStartIds
+    coldStartIds,
+    config.discordBroadcasterNotifyNicknames
   );
 
   // 6. Stream checker — detect live/offline changes (batch handler)
