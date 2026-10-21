@@ -308,18 +308,25 @@ class EventSubConnection extends EventEmitter {
 export class EventSubManager extends EventEmitter {
   private connections: EventSubConnection[] = [];
   private subscribeChain: Promise<any> = Promise.resolve();
+  private nextConnectionIndex = 0;
 
   /** Serialized subscribe — prevents concurrent connection creation races */
-  subscribe(broadcasterId: string): Promise<string | null> {
+  subscribe(
+    broadcasterId: string,
+    target?: EventSubConnection
+  ): Promise<string | null> {
     const result = this.subscribeChain.then(() =>
-      this._subscribe(broadcasterId)
+      this._subscribe(broadcasterId, target)
     );
     // Keep the chain going even if one subscribe fails
     this.subscribeChain = result.catch(() => {});
     return result;
   }
 
-  private async _subscribe(broadcasterId: string): Promise<string | null> {
+  private async _subscribe(
+    broadcasterId: string,
+    target?: EventSubConnection
+  ): Promise<string | null> {
     // Check if already subscribed
     for (const conn of this.connections) {
       if (conn.hasSubscription(broadcasterId)) {
@@ -327,10 +334,19 @@ export class EventSubManager extends EventEmitter {
       }
     }
 
+    // Resubscribe after reconnect: stay on the same connection so it does not
+    // end up empty (Twitch closes unused connections with 4003).
+    let conn =
+      target?.isConnected && this.connections.includes(target)
+        ? target
+        : undefined;
+
     // Prefer a connected connection with available slots.
-    let conn = this.connections.find(
-      (c) => c.isConnected && c.subCount < MAX_SUBS_PER_CONNECTION
-    );
+    if (!conn) {
+      conn = this.connections.find(
+        (c) => c.isConnected && c.subCount < MAX_SUBS_PER_CONNECTION
+      );
+    }
 
     // Do not create extra connections while an existing one is reconnecting.
     if (!conn) {
@@ -421,11 +437,7 @@ export class EventSubManager extends EventEmitter {
           console.log(
             `[eventsub-mgr] Unsubscribed from ${broadcasterId}`
           );
-          if (conn.subCount === 0) {
-            conn.close();
-            this.connections = this.connections.filter((c) => c !== conn);
-            console.log(`[eventsub-mgr] Closed empty connection conn-${conn.index}`);
-          }
+          this.closeIfEmpty(conn);
         } else {
           console.error(
             `[eventsub-mgr] Unsubscribe failed: ${res.status}`
@@ -438,8 +450,15 @@ export class EventSubManager extends EventEmitter {
     }
   }
 
+  private closeIfEmpty(conn: EventSubConnection) {
+    if (conn.subCount > 0 || !this.connections.includes(conn)) return;
+    conn.close();
+    this.connections = this.connections.filter((c) => c !== conn);
+    console.log(`[eventsub-mgr] Closed empty connection conn-${conn.index}`);
+  }
+
   private createConnection() {
-    const conn = new EventSubConnection(this.connections.length);
+    const conn = new EventSubConnection(this.nextConnectionIndex++);
     conn.on("notification", (event: ChatMessageEvent) => {
       this.emit("chat_message", event);
     });
@@ -458,8 +477,16 @@ export class EventSubManager extends EventEmitter {
     conn.clearSubscriptions();
 
     for (const broadcasterId of broadcasterIds) {
-      await this.subscribe(broadcasterId);
+      await this.subscribe(broadcasterId, conn);
     }
+
+    // Nothing left on this connection (e.g. all resubscribes failed):
+    // close it instead of letting Twitch drop it with 4003 every 10s.
+    // Run on the subscribe chain so an in-flight subscribe is not cut off.
+    this.subscribeChain = this.subscribeChain.then(() =>
+      this.closeIfEmpty(conn)
+    );
+    await this.subscribeChain;
   }
 
   getSubscribedChannels(): string[] {

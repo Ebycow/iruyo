@@ -20,3 +20,8 @@ services:
       - 8.8.8.8
       - 8.8.4.4
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
