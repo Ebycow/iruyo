@@ -1,9 +1,11 @@
-import { getLatestVod } from "../twitch/helix";
+import { getRecentVods } from "../twitch/helix";
+import type { TwitchVideo } from "../twitch/types";
 import type { StreamStatusChange } from "./stream-checker";
 
 const VOD_FETCH_DELAY_MS = 2 * 60 * 1000; // 2分: VOD生成を待つ
 
 interface LiveStreamCache {
+  streamId?: string;
   displayName: string;
   login: string;
   title: string;
@@ -33,6 +35,39 @@ function formatDuration(startedAt: string, endedAt: Date): string {
     return `${hours}時間${minutes}分`;
   }
   return `${minutes}分`;
+}
+
+/**
+ * 配信開始から終了検知までに作られたVODを古い順に返す。
+ * 配信を素早く切り替えるとポーリングではオフラインを検知できず、1回の配信に複数のVODができる。
+ */
+function selectSessionVods(
+  vods: TwitchVideo[],
+  cached: LiveStreamCache,
+  endedAt: Date
+): TwitchVideo[] {
+  const startMs = new Date(cached.startedAt).getTime();
+  const endMs = endedAt.getTime();
+
+  return vods
+    .filter((vod) => {
+      const createdMs = new Date(vod.created_at).getTime();
+      return (
+        vod.stream_id === cached.streamId ||
+        (createdMs >= startMs && createdMs <= endMs)
+      );
+    })
+    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+function formatVodLines(vods: TwitchVideo[]): string[] {
+  if (vods.length === 0) {
+    return ["アーカイブ動画：提供されていません"];
+  }
+  if (vods.length === 1) {
+    return [`アーカイブ動画：${vods[0].url}`];
+  }
+  return ["アーカイブ動画：", ...vods.flatMap((vod) => [`・${vod.title}`, vod.url])];
 }
 
 async function postWebhook(webhookUrl: string, content: string): Promise<boolean> {
@@ -90,6 +125,7 @@ export class BroadcasterNotifier {
     if (change.isLive) {
       const stream = change.streamData;
       this.liveCache.set(change.broadcasterId, {
+        streamId: stream?.id,
         displayName: stream?.user_name ?? change.login,
         login: stream?.user_login ?? change.login,
         title: stream?.title ?? "",
@@ -183,31 +219,33 @@ export class BroadcasterNotifier {
     const now = toJST(endedAt);
     const duration = formatDuration(cached.startedAt, endedAt);
 
-    let vodLine: string;
+    let vods: TwitchVideo[] = [];
     try {
-      console.log(`[broadcaster-notifier] Fetching latest VOD for ${cached.login} (${broadcasterId})...`);
-      const vod = await getLatestVod(broadcasterId);
-      if (vod) {
-        console.log(`[broadcaster-notifier] VOD found: ${vod.url} (duration: ${vod.duration})`);
-        vodLine = `アーカイブ動画：${vod.url}`;
+      console.log(`[broadcaster-notifier] Fetching recent VODs for ${cached.login} (${broadcasterId})...`);
+      vods = selectSessionVods(await getRecentVods(broadcasterId), cached, endedAt);
+      if (vods.length > 0) {
+        console.log(
+          `[broadcaster-notifier] VODs found: ${vods.map((vod) => `${vod.url} (duration: ${vod.duration})`).join(", ")}`
+        );
       } else {
         console.log(`[broadcaster-notifier] No VOD found for ${cached.login}`);
-        vodLine = "アーカイブ動画：提供されていません";
       }
     } catch (err) {
       console.error("[broadcaster-notifier] Failed to fetch VOD:", err);
-      vodLine = "アーカイブ動画：提供されていません";
     }
 
+    // VODが複数あるときは各VODのタイトルを載せるので、配信開始時のタイトルは省く
     const lines = [
       `**${displayName}の配信が終わりました**`,
       "",
       `日時：${now}`,
       `配信時間：${duration}`,
-      `タイトル：${cached.title}`,
+      vods.length > 1 ? null : `タイトル：${cached.title}`,
       "",
-      vodLine,
-    ].join("\n");
+      ...formatVodLines(vods),
+    ]
+      .filter((l) => l !== null)
+      .join("\n");
 
     console.log(
       `[broadcaster-notifier] Sending end notification for ${cached.login} (duration: ${duration})`

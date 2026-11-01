@@ -74,23 +74,23 @@ export async function getUsers(logins: string[]): Promise<TwitchUser[]> {
   return users;
 }
 
-export async function getLatestVod(userId: string): Promise<TwitchVideo | null> {
+export async function getRecentVods(userId: string): Promise<TwitchVideo[]> {
   const params = new URLSearchParams({
     user_id: userId,
     type: "archive",
-    first: "1",
+    first: "20",
   });
 
   const res = await helixFetch(`/videos?${params.toString()}`);
   if (!res.ok) {
     console.error(
-      `[helix] getLatestVod failed: ${res.status} ${await res.text()}`
+      `[helix] getRecentVods failed: ${res.status} ${await res.text()}`
     );
-    return null;
+    return [];
   }
 
   const data = await res.json();
-  return data.data?.[0] ?? null;
+  return data.data ?? [];
 }
 
 export async function getUsersById(ids: string[]): Promise<TwitchUser[]> {
