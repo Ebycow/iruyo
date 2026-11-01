@@ -21,6 +21,7 @@
     "concurrently": "^9.2.1",
     "dotenv": "^17.2.4",
     "drizzle-orm": "^0.45.1",
+    "jose": "^6.2.14",
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

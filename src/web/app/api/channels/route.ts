@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
+import { requireAccess } from "@/lib/access";
 
 function getDb() {
   const dbPath =
@@ -10,7 +11,10 @@ function getDb() {
   return sqlite;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = await requireAccess(request);
+  if (denied) return denied;
+
   const sqlite = getDb();
   try {
     const rows = sqlite

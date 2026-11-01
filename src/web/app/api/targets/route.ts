@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
+import { requireAccess } from "@/lib/access";
 
 let currentAccessToken = process.env.TWITCH_BOT_ACCESS_TOKEN || "";
 let currentRefreshToken = process.env.TWITCH_BOT_REFRESH_TOKEN || "";
@@ -92,7 +93,10 @@ async function resolveTwitchUser(login: string) {
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = await requireAccess(request);
+  if (denied) return denied;
+
   const sqlite = getDb(true);
   try {
     const rows = sqlite
@@ -114,6 +118,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAccess(request);
+  if (denied) return denied;
+
   const body = await request.json();
   let { userId, login, displayName, profileImageUrl } = body;
 
@@ -182,6 +189,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const denied = await requireAccess(request);
+  if (denied) return denied;
+
   const body = await request.json();
   const { userId, notifyDiscord } = body;
 
@@ -209,6 +219,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireAccess(request);
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
 

@@ -3,6 +3,11 @@ import type { DetectedEvent, MessageFragment } from "./chat-ingest";
 import type { StreamStatusChange } from "./stream-checker";
 import type { TwitchStream } from "../twitch/types";
 import { db, schema } from "@shared/db/index";
+import {
+  ACCESS_JWT_HEADER,
+  isAccessAllowed,
+  isAccessEnabled,
+} from "@shared/auth/cloudflare-access";
 import { desc, eq } from "drizzle-orm";
 
 export type NotifyEvent =
@@ -71,7 +76,19 @@ export class Notifier {
   }
 
   start(port: number) {
-    this.wss = new WebSocketServer({ port });
+    if (isAccessEnabled()) {
+      console.log("[notifier] Cloudflare Access JWT verification enabled");
+    }
+
+    this.wss = new WebSocketServer({
+      port,
+      verifyClient: ({ req }, done) => {
+        const token = req.headers[ACCESS_JWT_HEADER];
+        void isAccessAllowed(typeof token === "string" ? token : null).then(
+          (allowed) => done(allowed, 401)
+        );
+      },
+    });
 
     this.wss.on("connection", (ws) => {
       this.clients.add(ws);
