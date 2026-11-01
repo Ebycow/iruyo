@@ -26,6 +26,8 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 appuser
 
 COPY --from=builder /app/package.json ./
+# Next.jsはロックファイルの位置でワークスペースのルートを判定する。無いとdistDirが範囲外扱いになり起動できない
+COPY --from=builder /app/package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/drizzle ./drizzle

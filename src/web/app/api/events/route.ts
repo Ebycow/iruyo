@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Database from "better-sqlite3";
 import path from "path";
+import { requireAccess } from "@/lib/access";
 
 function getDb() {
   const dbPath =
@@ -10,6 +11,9 @@ function getDb() {
 }
 
 export async function GET(request: NextRequest) {
+  const denied = await requireAccess(request);
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const limit = Math.min(
     parseInt(searchParams.get("limit") || "50", 10),

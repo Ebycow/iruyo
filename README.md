@@ -67,8 +67,14 @@ cp .env.example .env
 | `DISCORD_BROADCASTER_NOTIFY_WEBHOOK_USER_ID` | 配信開始/終了を通知する配信者のTwitchユーザーID（カンマ区切りで複数指定可） |
 | `CSV_PATH` | 監視対象チャンネルCSVのパス |
 | `DATABASE_PATH` | SQLiteデータベースのパス（例: `./data/iruyo.db`） |
+| `CF_ACCESS_TEAM_DOMAIN` | Cloudflare Accessのチームドメイン（例: `your-team.cloudflareaccess.com`、省略可） |
+| `CF_ACCESS_AUD` | Cloudflare AccessアプリケーションのAUDタグ（省略可） |
 
 CSV_PATHは https://github.com/Ebycow/twicome と互換性があります
+
+iruyoのWeb UIとAPIには独自の認証がありません。インターネットに公開する場合はCloudflare Accessなどの認証の配下に置いてください。
+
+`CF_ACCESS_TEAM_DOMAIN` と `CF_ACCESS_AUD` を両方設定すると、APIとWebSocketで `Cf-Access-Jwt-Assertion` ヘッダーのJWTを検証し、Accessを経由しないアクセスを拒否します。片方だけの設定はエラーになります。リバースプロキシを挟む場合は、このヘッダーをそのまま転送してください。
 
 ### 3. 監視対象チャンネルCSVの準備
 
