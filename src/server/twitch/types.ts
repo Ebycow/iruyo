@@ -22,6 +22,7 @@ export interface TwitchStream {
 
 export interface TwitchVideo {
   id: string;
+  stream_id: string | null;
   user_id: string;
   title: string;
   url: string;
